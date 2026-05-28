@@ -17,4 +17,3 @@ be/venv/
 fe/client/.env
 fe/client/node_modules/
 node_modules/
-be/ai/data/
