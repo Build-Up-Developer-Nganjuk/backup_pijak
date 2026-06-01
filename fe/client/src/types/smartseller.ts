@@ -27,9 +27,9 @@ export interface TrendSource {
   url: string;
 }
 
-export interface StreamResponse {
-  text?: string;
-  sources?: TrendSource[];
+export interface TrendAnalysisResponse {
+  text: string;
+  sources: TrendSource[];
 }
 
 export interface ChatHistoryItem {

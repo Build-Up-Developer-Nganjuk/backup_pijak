@@ -9,10 +9,10 @@ import { ModelPurpose } from "../components/ModelPurpose";
 import type { ForecastResponse, ChatMessage, ChatHistoryItem } from "../types/smartseller";
 
 import { getForecast, sendChatConsultation, clearChatSession } from "../services/smartsellerService";
-import { useTrendStream } from "../hooks/useTrendStream";
+import { useTrendAnalysis } from "../hooks/useTrendAnalysis";
 
 export const SmartSellerDashboard: React.FC = () => {
-  const { streamText, streamLoading, startStream, resetStream } = useTrendStream();
+  const { trendText, trendSources, trendLoading, fetchTrend, resetTrend } = useTrendAnalysis();
   const [sessionId, setSessionId] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Clothing");
   const [forecastWeeks, setForecastWeeks] = useState<number>(4);
@@ -62,7 +62,7 @@ export const SmartSellerDashboard: React.FC = () => {
       setSseStatus("SIARAN LANGSUNG");
       setGlobalTrend(`TREN ${data.category.toUpperCase()} TERDETEKSI`);
 
-      startStream(data.category, data.trend_status, data.forecast_summary);
+      fetchTrend(data.category, data.trend_status, data.forecast_summary);
     } catch (err) {
       console.log(err);
       setSseStatus("EROR");
@@ -132,12 +132,12 @@ export const SmartSellerDashboard: React.FC = () => {
     setChatHistory([]);
     setSseStatus("TERPUTUS");
     setGlobalTrend("Sesi direset");
-    resetStream();
+    resetTrend();
   };
 
   return (
     <div className="bg-slate-950 text-slate-100 flex flex-col min-h-screen relative overflow-x-hidden antialiased font-sans w-full p-4 lg:p-6 gap-6">
-      <PipelineStatus sessionId={sessionId} sseStatus={streamLoading ? "MENYIARKAN" : sseStatus} globalTrend={globalTrend} />
+      <PipelineStatus sessionId={sessionId} sseStatus={trendLoading ? "MENGANALISIS" : sseStatus} globalTrend={globalTrend} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-4 flex flex-col gap-6">
@@ -156,7 +156,7 @@ export const SmartSellerDashboard: React.FC = () => {
         </div>
 
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <ForecastOutput data={forecastData} streamText={streamText} />
+          <ForecastOutput data={forecastData} streamText={trendText} trendSources={trendSources} trendLoading={trendLoading} />
 
           <ChatConsultation chatHistory={chatHistory} onSendMessage={handleSendChatConsultation} hasContext={!!forecastData} />
         </div>

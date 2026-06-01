@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from controllers.ai_time_series_controller import forecast_controller
 from validates.ai_time_series_validate import ForecastRequest
 
-from configs.gemini import stream_trend_and_grounding, client
+from configs.gemini import get_trend_analysis, client
 from pydantic import BaseModel
 from typing import List, Dict
 from google.genai.errors import APIError
@@ -34,20 +34,14 @@ async def forecast(payload: ForecastRequest):
     return result
 
 
-@router.get("/stream-trends")
+@router.get("/trend-analysis")
 async def stream_market_trends(
     category: str = Query(..., description="Kategori produk, misal: Clothing"),
     trend_status: str = Query(..., description="MENINGKAT atau MENURUN"),
     forecast_summary: str = Query(..., description="Ringkasan angka untuk kontekstualisasi")
 ):
-    """
-    Endpoint Server-Sent Events (SSE) untuk mengalirkan teks analisis real-time
-    serta mengirimkan metadata link sumber berita di akhir stream.
-    """
-    return StreamingResponse(
-        stream_trend_and_grounding(category, trend_status, forecast_summary),
-        media_type="text/event-stream"
-    )
+    result = await get_trend_analysis(category, trend_status, forecast_summary)
+    return result
 
 
 @router.post("/chat-consultation")
