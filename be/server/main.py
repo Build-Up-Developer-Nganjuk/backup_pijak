@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from prometheus_fastapi_instrumentator import Instrumentator
 from routes.ai_time_series_route import router as time_series_router
 
 app = FastAPI(
@@ -21,3 +21,5 @@ app.include_router(
     prefix="/api/time-series",
     tags=["Time Series"]
 )
+
+Instrumentator().instrument(app).expose(app)
