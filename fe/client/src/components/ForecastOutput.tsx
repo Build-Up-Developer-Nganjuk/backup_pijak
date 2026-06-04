@@ -11,12 +11,12 @@ import type { ForecastResponse, TrendSource } from "../types/smartseller";
 
 interface ForecastOutputProps {
   data: ForecastResponse | null;
-  streamText: string;
+  trendText: string;
   trendSources: TrendSource[];
   trendLoading: boolean;
 }
 
-export const ForecastOutput: React.FC<ForecastOutputProps> = ({ data, streamText, trendSources, trendLoading }) => {
+export const ForecastOutput: React.FC<ForecastOutputProps> = ({ data, trendText, trendSources, trendLoading }) => {
   const isMeningkat = data?.trend_status === "MENINGKAT";
 
   const genderData = data?.insight?.gender_distribution ?? {
@@ -260,12 +260,12 @@ export const ForecastOutput: React.FC<ForecastOutputProps> = ({ data, streamText
               <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
               Sedang menganalisis pasar...
             </div>
-          ) : !streamText ? (
+          ) : !trendText ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-xs italic">Menunggu hasil analisis...</div>
           ) : (
             <div className={`prose prose-invert max-w-none text-slate-300 ${expandedCard === "stream" ? "prose-lg" : "prose-sm"}`}>
               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                {streamText}
+                {trendText}
               </ReactMarkdown>
             </div>
           )}

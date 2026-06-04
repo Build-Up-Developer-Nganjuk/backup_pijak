@@ -156,7 +156,7 @@ export const SmartSellerDashboard: React.FC = () => {
         </div>
 
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <ForecastOutput data={forecastData} streamText={trendText} trendSources={trendSources} trendLoading={trendLoading} />
+          <ForecastOutput data={forecastData} trendText={trendText} trendSources={trendSources} trendLoading={trendLoading} />
 
           <ChatConsultation chatHistory={chatHistory} onSendMessage={handleSendChatConsultation} hasContext={!!forecastData} />
         </div>
