@@ -4,7 +4,6 @@ import asyncio
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from matplotlib import category
 from google.genai.errors import APIError
 
 load_dotenv()
@@ -38,7 +37,7 @@ def generate_sales_insight(data):
     - PERINGATAN: Data ini berskala MINGGUAN. Gunakan istilah "minggu ke-1", "minggu ke-2", dst.
     - STRUKTUR KETAT: DILARANG MENGARANG atau menyebutkan tanggal, nama bulan, atau tahun apa pun secara spesifik (JANGAN gunakan kata seperti "hari", nama-nama bulan, atau angka tahun). Fokus hanya pada urutan minggu numerik (misalnya: "minggu ke-1", "minggu ke-2").
     """
-    models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    models = ["gemini-3.5-flash", "gemini-2.5-flash"]
     for model in models:
         try:
             response = client.models.generate_content(model=model, contents=prompt)
@@ -91,7 +90,7 @@ Ketentuan:
         temperature=0.3,
     )
 
-    models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    models = ["gemini-3.5-flash", "gemini-2.5-flash"]
     sources = []
     text = ""
 

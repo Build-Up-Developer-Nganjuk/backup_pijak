@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Query, HTTPException
-from fastapi.responses import StreamingResponse
 from controllers.ai_time_series_controller import forecast_controller
 from validates.ai_time_series_validate import ForecastRequest
 
@@ -64,7 +63,7 @@ async def chat_consultation(payload: ChatConsultationRequest):
         active_history = CHAT_SESSIONS[s_id]
 
         chat = client.chats.create(
-            model="gemini-3.5-flash",
+            model="gemini-2.5-flash",
             history=active_history
         )
         
@@ -73,7 +72,10 @@ async def chat_consultation(payload: ChatConsultationRequest):
         updated_history = chat.get_history()
         
         CHAT_SESSIONS[s_id] = [
-            {"role": msg.role, "parts": [{"text": p.text for p in msg.parts}]} 
+            {
+                "role": msg.role, 
+                "parts": [{"text": p.text if hasattr(p, 'text') else str(p)} for p in msg.parts]
+            } 
             for msg in updated_history
         ]
         
@@ -81,10 +83,14 @@ async def chat_consultation(payload: ChatConsultationRequest):
             "reply": response.text
         }
         
-    except APIError as e:
-        raise HTTPException(status_code=502, detail=f"Gemini API Error: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[CHAT ERROR] Gagal pada sesi {payload.session_id} untuk kategori {payload.category}.")
+        print(f"Detail Pesan Error: {str(e)}\n")
+        
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Terjadi kesalahan pada layanan chat AI: {str(e)}"
+        )
 
 
 @router.post("/clear-chat")
