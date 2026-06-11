@@ -4,7 +4,6 @@ import asyncio
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from google.genai.errors import APIError
 
 load_dotenv()
 
@@ -37,35 +36,38 @@ def generate_sales_insight(data):
     - PERINGATAN: Data ini berskala MINGGUAN. Gunakan istilah "minggu ke-1", "minggu ke-2", dst.
     - STRUKTUR KETAT: DILARANG MENGARANG atau menyebutkan tanggal, nama bulan, atau tahun apa pun secara spesifik (JANGAN gunakan kata seperti "hari", nama-nama bulan, atau angka tahun). Fokus hanya pada urutan minggu numerik (misalnya: "minggu ke-1", "minggu ke-2").
     """
-    models = ["gemini-3.5-flash", "gemini-2.5-flash"]
+    
+    models = ["gemini-2.5-flash"]
     for model in models:
         try:
             response = client.models.generate_content(model=model, contents=prompt)
             return response.text
-        except APIError as e:
-            print(f"Error pada model {model}: {str(e)}")
+        except Exception as e:
+            # Menggunakan Exception umum dan menambahkan print log untuk tracking di Railway
+            print(f"[ERROR - Sales Insight] Gagal pada model {model} untuk kategori {data.get('category')}. Pesan Error: {str(e)}")
             continue
+            
     return "Gagal memproses data insight."
 
 
 async def get_trend_analysis(category: str, trend_status: str, forecast_summary: str):
     if trend_status == "MENINGKAT":
         instruction = (
-        f"Cari berita, artikel industri, laporan pasar, dan pembahasan media online terbaru "
-        f"mengenai kategori produk {category}. "
-        f"Identifikasi tren yang sedang naik daun, viral di media sosial, atau mengalami peningkatan permintaan. "
-        f"Sebutkan model, jenis, atau varian produk yang direkomendasikan untuk ditambah stoknya. "
-        f"Gunakan informasi yang ditemukan dari hasil pencarian web terbaru sebagai dasar analisis."
-    )
+            f"Cari berita, artikel industri, laporan pasar, dan pembahasan media online terbaru "
+            f"mengenai kategori produk {category}. "
+            f"Identifikasi tren yang sedang naik daun, viral di media sosial, atau mengalami peningkatan permintaan. "
+            f"Sebutkan model, jenis, atau varian produk yang direkomendasikan untuk ditambah stoknya. "
+            f"Gunakan informasi yang ditemukan dari hasil pencarian web terbaru sebagai dasar analisis."
+        )
     else:
         instruction = (
-        f"Cari berita, artikel industri, laporan pasar, dan pembahasan media online terbaru "
-        f"mengenai kategori produk {category}. "
-        f"Analisis alasan mengapa kategori tersebut mengalami penurunan minat atau penjualan "
-        f"(misalnya faktor musim, perubahan tren, kondisi ekonomi, atau pergeseran preferensi konsumen). "
-        f"Sebutkan produk yang sebaiknya dihindari serta strategi mitigasi yang dapat dilakukan pedagang. "
-        f"Gunakan informasi yang ditemukan dari hasil pencarian web terbaru sebagai dasar analisis."
-    )
+            f"Cari berita, artikel industri, laporan pasar, dan pembahasan media online terbaru "
+            f"mengenai kategori produk {category}. "
+            f"Analisis alasan mengapa kategori tersebut mengalami penurunan minat atau penjualan "
+            f"(misalnya faktor musim, perubahan tren, kondisi ekonomi, atau pergeseran preferensi konsumen). "
+            f"Sebutkan produk yang sebaiknya dihindari serta strategi mitigasi yang dapat dilakukan pedagang. "
+            f"Gunakan informasi yang ditemukan dari hasil pencarian web terbaru sebagai dasar analisis."
+        )
 
     prompt = f"""
 Anda adalah Pakar Analis Tren Pasar SMARTSELLER AI.
@@ -90,7 +92,7 @@ Ketentuan:
         temperature=0.3,
     )
 
-    models = ["gemini-3.5-flash", "gemini-2.5-flash"]
+    models = ["gemini-2.5-flash"]
     sources = []
     text = ""
 
@@ -151,7 +153,7 @@ Pastikan hanya mengembalikan JSON, tanpa teks markdown tambahan.
                 continue
 
     if not text:
-        print(f"[🚨 CRITICAL] Semua model Gemini gagal total menghasilkan teks untuk {category}")
+        print(f"[CRITICAL] Semua model Gemini gagal total menghasilkan teks untuk {category}")
         text = f"Analisis tren pasar untuk {category} saat ini menggunakan data internal SMARTSELLER AI terbaru."
     if not sources:
         sources = [
