@@ -51,11 +51,18 @@ def forecast_with_insight(category, weeks):
     }
     
     future_years = future['ds'].dt.year
-    trend_factors = future_years.map(category_yearly_trend.get(category, {}))
-    
-    crisis_factors = np.where(future['ds'] >= '2026-01-01', 0.88,
-                     np.where(future['ds'] >= '2025-07-01', 0.95, 1.0))
-    
+
+    trend_map = category_yearly_trend.get(category, {})
+
+    trend_factors = future_years.map(trend_map)
+
+    trend_factors = trend_factors.fillna(trend_map[2026])
+
+    crisis_factors = np.where(
+        future['ds'] >= '2026-01-01', 0.88,
+        np.where(future['ds'] >= '2025-07-01', 0.95, 1.0)
+    )
+
     future['macro_multiplier'] = trend_factors * crisis_factors
     
     forecast = model.predict(future)

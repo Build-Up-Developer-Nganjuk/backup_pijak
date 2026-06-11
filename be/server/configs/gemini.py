@@ -16,7 +16,6 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 def generate_sales_insight(data):
-    """Membantu memberikan insight awal berbasis data internal"""
     prompt = f"""
     Berikut adalah data prediksi penjualan:
     Kategori: {data['category']}
