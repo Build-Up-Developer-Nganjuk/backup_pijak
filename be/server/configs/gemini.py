@@ -43,7 +43,8 @@ def generate_sales_insight(data):
         try:
             response = client.models.generate_content(model=model, contents=prompt)
             return response.text
-        except APIError:
+        except APIError as e:
+            print(f"Error pada model {model}: {str(e)}")
             continue
     return "Gagal memproses data insight."
 
@@ -115,10 +116,12 @@ Ketentuan:
                                 sources.append(item)
             if text:
                 break
-        except Exception:
+        except Exception as e:
+            print(f"[ERROR - Google Search] Gagal pada model {model} untuk kategori {category}. Pesan Error: {str(e)}")
             continue
 
     if not text or not sources:
+        print(f"[WARNING] Hasil pencarian Google kosong/gagal untuk {category}. Masuk ke mode Fallback JSON.")
         fallback_prompt = prompt + """
 Karena keterbatasan pencarian langsung, gunakan basis pengetahuan internal Anda (Tahun 2026).
 PENTING: Anda harus merespons dalam format JSON valid dengan struktur seperti ini:
@@ -144,10 +147,12 @@ Pastikan hanya mengembalikan JSON, tanpa teks markdown tambahan.
                 sources = data.get("news", [])
                 if text:
                     break
-            except Exception:
+            except Exception as e:
+                print(f"[ERROR - Fallback JSON] Gagal pada model {model} untuk kategori {category}. Pesan Error: {str(e)}")
                 continue
 
     if not text:
+        print(f"[🚨 CRITICAL] Semua model Gemini gagal total menghasilkan teks untuk {category}")
         text = f"Analisis tren pasar untuk {category} saat ini menggunakan data internal SMARTSELLER AI terbaru."
     if not sources:
         sources = [
