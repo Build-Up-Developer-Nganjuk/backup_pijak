@@ -6,12 +6,26 @@ from google import genai
 from google.genai import types
 
 load_dotenv()
+# es vanilla
+api_key_insight = os.getenv("GEMINI_API_KEY_A")
+# es cincau and es degan
+api_key_trend = os.getenv("GEMINI_API_KEY_C")
+api_key_trend_backup = os.getenv("GEMINI_API_KEY_D")
+# milkienter
+api_key_chat = os.getenv("GEMINI_API_KEY_B")
 
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("API key tidak ditemukan di environment")
+if not all([api_key_insight, api_key_trend, api_key_chat]):
+    raise ValueError("Salah satu atau seluruh API key (A, B, C, D) tidak ditemukan di environment")
 
-client = genai.Client(api_key=api_key)
+client_insight = genai.Client(api_key=api_key_insight)
+client_chat = genai.Client(api_key=api_key_chat) 
+
+trend_clients = [
+    {"name": "Utama", "client": genai.Client(api_key=api_key_trend)},
+]
+
+if api_key_trend_backup:
+    trend_clients.append({"name": "Backup (es degan)", "client": genai.Client(api_key=api_key_trend_backup)})
 
 def generate_sales_insight(data):
     prompt = f"""
@@ -37,13 +51,12 @@ def generate_sales_insight(data):
     - STRUKTUR KETAT: DILARANG MENGARANG atau menyebutkan tanggal, nama bulan, atau tahun apa pun secara spesifik (JANGAN gunakan kata seperti "hari", nama-nama bulan, atau angka tahun). Fokus hanya pada urutan minggu numerik (misalnya: "minggu ke-1", "minggu ke-2").
     """
     
-    models = ["gemini-2.5-flash"]
+    models = ["gemini-2.5-flash", "gemini-3.5-flash"]
     for model in models:
         try:
-            response = client.models.generate_content(model=model, contents=prompt)
+            response = client_insight.models.generate_content(model=model, contents=prompt)
             return response.text
         except Exception as e:
-            # Menggunakan Exception umum dan menambahkan print log untuk tracking di Railway
             print(f"[ERROR - Sales Insight] Gagal pada model {model} untuk kategori {data.get('category')}. Pesan Error: {str(e)}")
             continue
             
@@ -70,59 +83,70 @@ async def get_trend_analysis(category: str, trend_status: str, forecast_summary:
         )
 
     prompt = f"""
-Anda adalah Pakar Analis Tren Pasar SMARTSELLER AI.
-Kategori Produk: {category}
-Status Prediksi Penjualan Internal: {trend_status}
-Ringkasan Angka Prediksi Mingguan: {forecast_summary}
+            Anda adalah Pakar Analis Tren Pasar SMARTSELLER AI.
+            Kategori Produk: {category}
+            Status Prediksi Penjualan Internal: {trend_status}
+            Ringkasan Angka Prediksi Mingguan: {forecast_summary}
 
-Tugas Anda: Hubungkan hasil prediksi internal kami dengan realitas pasar dunia nyata
-saat ini berdasarkan instruksi berikut:
-{instruction}
+            Tugas Anda: Hubungkan hasil prediksi internal kami dengan realitas pasar dunia nyata
+            saat ini berdasarkan instruksi berikut:
+            {instruction}
 
-Ketentuan:
-- WAJIB menggunakan Google Search untuk memperoleh informasi terbaru.
-- Dasarkan analisis pada berita, artikel industri, laporan pasar, atau media online yang ditemukan.
-- Jika hasil pencarian tersedia, gunakan informasi tersebut sebagai sumber utama analisis.
-- Berikan insight yang taktis dan actionable.
-- Gunakan bahasa Indonesia profesional dan komunikatif.
-"""
+            Ketentuan:
+            - WAJIB menggunakan Google Search untuk memperoleh informasi terbaru.
+            - Dasarkan analisis pada berita, artikel industri, laporan pasar, atau media online yang ditemukan.
+            - Jika hasil pencarian tersedia, gunakan informasi tersebut sebagai sumber utama analisis.
+            - Berikan insight yang taktis dan actionable.
+            - Gunakan bahasa Indonesia profesional dan komunikatif.
+            """
 
     config_with_search = types.GenerateContentConfig(
         tools=[types.Tool(google_search=types.GoogleSearch())],
         temperature=0.3,
     )
 
-    models = ["gemini-2.5-flash"]
+    models = ["gemini-2.5-flash", "gemini-3.5-flash"]
     sources = []
     text = ""
 
-    for model in models:
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=config_with_search,
-            )
+    search_success = False
+    for client_node in trend_clients:
+        t_client = client_node["client"]
+        t_name = client_node["name"]
+        
+        for model in models:
+            try:
+                print(f"[TREND LOG] Mencoba Analisis Web dengan Akun {t_name} menggunakan model {model}...")
+                response = t_client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=config_with_search,
+                )
 
-            text = response.text or ""
+                text = response.text or ""
 
-            if response.candidates and response.candidates[0].grounding_metadata:
-                meta = response.candidates[0].grounding_metadata
-                if meta.grounding_chunks:
-                    for chunk in meta.grounding_chunks:
-                        if chunk.web and chunk.web.uri:
-                            title = chunk.web.title if chunk.web.title else f"Analisis Tren {category}"
-                            item = {"title": title, "url": chunk.web.uri}
-                            if item not in sources:
-                                sources.append(item)
-            if text:
-                break
-        except Exception as e:
-            print(f"[ERROR - Google Search] Gagal pada model {model} untuk kategori {category}. Pesan Error: {str(e)}")
-            continue
+                if response.candidates and response.candidates[0].grounding_metadata:
+                    meta = response.candidates[0].grounding_metadata
+                    if meta.grounding_chunks:
+                        for chunk in meta.grounding_chunks:
+                            if chunk.web and chunk.web.uri:
+                                title = chunk.web.title if chunk.web.title else f"Analisis Tren {category}"
+                                item = {"title": title, "url": chunk.web.uri}
+                                if item not in sources:
+                                    sources.append(item)
+                if text:
+                    print(f"[TREND SUCCESS] Berhasil menggunakan Akun {t_name} ({model})")
+                    search_success = True
+                    break
+            except Exception as e:
+                print(f"[ERROR - Google Search] Gagal pada Akun {t_name} ({model}) untuk {category}. Pesan Error: {str(e)}")
+                continue
+        
+        if search_success:
+            break
 
     if not text or not sources:
-        print(f"[WARNING] Hasil pencarian Google kosong/gagal untuk {category}. Masuk ke mode Fallback JSON.")
+        print(f"[WARNING] Jalur Utama Kosong/Gagal untuk {category}. Masuk ke mode Fallback JSON Multi-Client.")
         fallback_prompt = prompt + """
 Karena keterbatasan pencarian langsung, gunakan basis pengetahuan internal Anda (Tahun 2026).
 PENTING: Anda harus merespons dalam format JSON valid dengan struktur seperti ini:
@@ -135,25 +159,36 @@ PENTING: Anda harus merespons dalam format JSON valid dengan struktur seperti in
 }
 Pastikan hanya mengembalikan JSON, tanpa teks markdown tambahan.
 """
-        for model in models:
-            try:
-                response = client.models.generate_content(
-                    model=model,
-                    contents=fallback_prompt,
-                    config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.3)
-                )
-                
-                data = json.loads(response.text)
-                text = data.get("analysis", "")
-                sources = data.get("news", [])
-                if text:
-                    break
-            except Exception as e:
-                print(f"[ERROR - Fallback JSON] Gagal pada model {model} untuk kategori {category}. Pesan Error: {str(e)}")
-                continue
+        fallback_success = False
+        for client_node in trend_clients:
+            t_client = client_node["client"]
+            t_name = client_node["name"]
+            
+            for model in models:
+                try:
+                    print(f"[TREND LOG] Mencoba Fallback JSON dengan Akun {t_name} menggunakan model {model}...")
+                    response = t_client.models.generate_content(
+                        model=model,
+                        contents=fallback_prompt,
+                        config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.3)
+                    )
+                    
+                    data = json.loads(response.text)
+                    text = data.get("analysis", "")
+                    sources = data.get("news", [])
+                    if text:
+                        print(f"[FALLBACK SUCCESS] Berhasil mengembalikan JSON via Akun {t_name} ({model})")
+                        fallback_success = True
+                        break
+                except Exception as e:
+                    print(f"[ERROR - Fallback JSON] Gagal pada Akun {t_name} ({model}). Pesan Error: {str(e)}")
+                    continue
+            
+            if fallback_success:
+                break
 
     if not text:
-        print(f"[CRITICAL] Semua model Gemini gagal total menghasilkan teks untuk {category}")
+        print(f"[CRITICAL] Semua akun dan model Gemini gagal total menghasilkan teks untuk {category}")
         text = f"Analisis tren pasar untuk {category} saat ini menggunakan data internal SMARTSELLER AI terbaru."
     if not sources:
         sources = [

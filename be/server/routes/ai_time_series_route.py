@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, HTTPException
 from controllers.ai_time_series_controller import forecast_controller
 from validates.ai_time_series_validate import ForecastRequest
 
-from configs.gemini import get_trend_analysis, client
+from configs.gemini import get_trend_analysis, client_chat
 from pydantic import BaseModel
 from typing import List, Dict
 from google.genai.errors import APIError
@@ -61,16 +61,31 @@ async def chat_consultation(payload: ChatConsultationRequest):
             ]
 
         active_history = CHAT_SESSIONS[s_id]
+        
+        chat_models = ["gemini-2.5-flash", "gemini-3.5-flash"]
+        response = None
+        updated_history = None
 
-        chat = client.chats.create(
-            model="gemini-2.5-flash",
-            history=active_history
-        )
-        
-        response = chat.send_message(payload.message)
-        
-        updated_history = chat.get_history()
-        
+        for model_name in chat_models:
+            try:
+                chat = client_chat.chats.create(
+                    model=model_name,
+                    history=active_history
+                )
+                
+                response = chat.send_message(payload.message)
+                
+                updated_history = chat.get_history()
+                print(f"[CHAT SUCCESS] Berhasil merespons menggunakan model: {model_name}")
+                break
+                
+            except Exception as model_error:
+                print(f"[⚠️ CHAT WARNING] Model {model_name} gagal/sibuk. Error: {str(model_error)}")
+                continue
+
+        if not response or not updated_history:
+            raise ValueError("Semua model Gemini (Flash & Pro) sedang sibuk atau kuota habis.")
+
         CHAT_SESSIONS[s_id] = [
             {
                 "role": msg.role, 
@@ -84,8 +99,8 @@ async def chat_consultation(payload: ChatConsultationRequest):
         }
         
     except Exception as e:
-        print(f"[CHAT ERROR] Gagal pada sesi {payload.session_id} untuk kategori {payload.category}.")
-        print(f"Detail Pesan Error: {str(e)}\n")
+        print(f"\n[CRITICAL CHAT ERROR] Gagal total pada sesi {payload.session_id} untuk kategori {payload.category}.")
+        print(f"Detail Pesan Error Utama: {str(e)}\n")
         
         raise HTTPException(
             status_code=500, 
